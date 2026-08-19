@@ -4,8 +4,8 @@ The retrieval path is explicit and inspectable.
 
 1. Normalize the query.
 2. Generate a deterministic local embedding (default demo provider).
-3. Score authorized chunks lexically.
-4. Score authorized chunks by vector distance.
+3. Load authorized PostgreSQL-backed chunks and score them lexically in the application layer.
+4. Read their pgvector embeddings and compute vector similarity in the application layer.
 5. Fuse candidate ranks with reciprocal-rank fusion.
 6. Keep the top evidence set.
 7. Produce an answer draft only from that evidence.

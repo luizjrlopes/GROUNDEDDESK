@@ -2,10 +2,10 @@ from __future__ import annotations
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 from .ai import provider
-from .models import AuditEvent, IngestionJob, KnowledgeChunk, KnowledgeDocument, Organization, SystemFlag, Ticket, TicketMessage, User
+from .models import AuditEvent, IngestionJob, KnowledgeChunk, KnowledgeDocument, Organization, SystemFlag, Ticket, TicketAttachment, TicketMessage, User
 
 def reset_demo(db:Session):
-    for model in [TicketMessage,KnowledgeChunk,IngestionJob,AuditEvent,SystemFlag,Ticket,KnowledgeDocument,User,Organization]: db.execute(delete(model))
+    for model in [TicketAttachment,TicketMessage,KnowledgeChunk,IngestionJob,AuditEvent,SystemFlag,Ticket,KnowledgeDocument,User,Organization]: db.execute(delete(model))
     seed(db)
 
 def seed(db:Session):
@@ -15,6 +15,7 @@ def seed(db:Session):
     db.add_all([User(id=i,org_id="orbital",name=n,role=r) for i,n,r in users])
     t1=Ticket(id="GD-1842",org_id="orbital",subject="VPN desconecta após atualização do cliente",requester_name="Marina Costa",queue="Workplace",priority="Alta",status="Em atendimento",sla_remaining=34,assignee_name="Rafael Lima",category="Acesso remoto",sentiment="Frustrado")
     t1.messages=[TicketMessage(author_name="Marina Costa",kind="customer",body="Depois da atualização 5.8.1, a VPN conecta por cerca de dois minutos e cai. Já reiniciei o notebook e continuo com o mesmo problema."),TicketMessage(author_name="Rafael Lima",kind="agent",body="Recebi o caso. Vou validar a versão do cliente e comparar com os procedimentos aprovados para esse tipo de falha.")]
+    t1.attachments=[TicketAttachment(filename="vpn-error.png",media_type="image/png",size_bytes=184220),TicketAttachment(filename="client-log.txt",media_type="text/plain",size_bytes=9240)]
     db.add_all([t1,Ticket(id="GD-1841",org_id="orbital",subject="Erro 403 no portal financeiro",requester_name="Carlos Mendes",queue="Aplicações",priority="Média",status="Aguardando cliente",sla_remaining=72,assignee_name="Bianca Reis",category="Autorização"),Ticket(id="GD-1839",org_id="orbital",subject="Notebook não recebe políticas de segurança",requester_name="Fernanda Rocha",queue="Workplace",priority="Crítica",status="Em atendimento",sla_remaining=18,assignee_name="Rafael Lima",category="Endpoint"),Ticket(id="GD-1835",org_id="orbital",subject="Solicitação de acesso ao ambiente QA",requester_name="Paulo Souza",queue="IAM",priority="Baixa",status="Resolvido",sla_remaining=100,assignee_name="Bianca Reis",category="Acesso")])
     docs=[("KB-017","VPN: falha após atualização","MD","v3.2","Workplace",98,"A versão 5.8.1 pode manter um perfil legado incompatível. Remova o perfil legado, sincronize a configuração corporativa e reinicie o serviço de VPN."),("RUNBOOK-09","Escalonamento de acesso remoto","PDF","v2.1","Workplace",96,"Após duas tentativas de recuperação sem sucesso, encaminhe para Network Operations com logs e horário das falhas."),("KB-031","Matriz de erros do portal financeiro","DOCX","v1.7","Aplicações",91,"Erros 403 devem validar papel, grupo de autorização e expiração da sessão antes de escalonar."),("POL-004","Política de concessão de acessos","PDF","v4.0","IAM",99,"Acessos a ambientes devem possuir solicitante, justificativa, aprovador e prazo de validade.")]
     for i,title,ft,ver,scope,quality,text in docs:

@@ -10,12 +10,12 @@ from ..security import current_user
 router=APIRouter(prefix="/tickets",tags=["tickets"])
 
 def visible_stmt(user:User):
-    stmt=select(Ticket).options(selectinload(Ticket.messages)).where(Ticket.org_id==user.org_id)
+    stmt=select(Ticket).options(selectinload(Ticket.messages),selectinload(Ticket.attachments)).where(Ticket.org_id==user.org_id)
     if user.role=="requester": stmt=stmt.where(Ticket.requester_name==user.name)
     return stmt
 
 def serialize(t:Ticket):
-    return {"id":t.id,"subject":t.subject,"requester":t.requester_name,"queue":t.queue,"priority":t.priority,"status":t.status,"sla":t.sla_remaining,"assignee":t.assignee_name,"category":t.category,"sentiment":t.sentiment,"created_at":t.created_at,"messages":[{"id":m.id,"author":m.author_name,"kind":m.kind,"body":m.body,"created_at":m.created_at} for m in t.messages]}
+    return {"id":t.id,"subject":t.subject,"requester":t.requester_name,"queue":t.queue,"priority":t.priority,"status":t.status,"sla":t.sla_remaining,"assignee":t.assignee_name,"category":t.category,"sentiment":t.sentiment,"created_at":t.created_at,"messages":[{"id":m.id,"author":m.author_name,"kind":m.kind,"body":m.body,"created_at":m.created_at} for m in t.messages],"attachments":[{"id":a.id,"filename":a.filename,"media_type":a.media_type,"size_bytes":a.size_bytes} for a in t.attachments]}
 
 @router.get("")
 def list_tickets(user:User=Depends(current_user),db:Session=Depends(get_db)):
@@ -31,7 +31,7 @@ def get_ticket(ticket_id:str,user:User=Depends(current_user),db:Session=Depends(
 
 @router.post("")
 def create_ticket(body:TicketCreate,user:User=Depends(current_user),db:Session=Depends(get_db)):
-    if not can(user.role,"tickets:create"): raise HTTPException(403)
+    if not can(user.role,"tickets:create"): raise HTTPException(403,"Cannot create ticket")
     requester=user.name if user.role=="requester" else (body.requester_name or user.name)
     t=Ticket(id=uid("GD"),org_id=user.org_id,subject=body.subject,requester_name=requester,queue=body.queue,priority=body.priority,status="Aberto")
     t.messages.append(TicketMessage(author_name=requester,kind="customer",body=body.description))

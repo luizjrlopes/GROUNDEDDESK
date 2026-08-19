@@ -8,7 +8,7 @@ GroundedDesk is a multi-tenant support desk with a governed knowledge base and e
 - **API:** Python 3.13, FastAPI 0.140.x, SQLAlchemy 2.0
 - **Database/search:** PostgreSQL 18 + pgvector 0.8.6
 - **Background processing:** transactional PostgreSQL job queue + Python worker (`FOR UPDATE SKIP LOCKED`)
-- **RAG:** PostgreSQL full-text + pgvector candidate retrieval, reciprocal-rank fusion, deterministic local embedding/generation provider by default
+- **RAG:** PostgreSQL-backed authorized chunks + pgvector embeddings, application-level lexical/vector scoring with reciprocal-rank fusion, deterministic local embedding/generation provider by default
 - **Auth:** signed JWT demo sessions with server-side RBAC and tenant scoping
 - **Local runtime:** Docker Compose
 
@@ -19,7 +19,7 @@ No paid service is required for the demo path. The AI boundary is provider-based
 - demo login with Cliente, Atendente, Gestor, Admin KB and Auditor roles;
 - organization-scoped data access;
 - tickets, queues, priority, SLA and explicit state transitions;
-- requester comments and agent replies;
+- requester comments, ticket attachment metadata and agent replies;
 - AI-assisted draft with citations and groundedness score;
 - mandatory human review before sending an AI-assisted answer;
 - Markdown/PDF/DOCX knowledge-document metadata and version history;

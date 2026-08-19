@@ -38,6 +38,16 @@ class Ticket(Base):
     sentiment: Mapped[str] = mapped_column(String(40), default="Neutro")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     messages: Mapped[list[TicketMessage]] = relationship(back_populates="ticket", cascade="all, delete-orphan", order_by="TicketMessage.created_at")
+    attachments: Mapped[list[TicketAttachment]] = relationship(back_populates="ticket", cascade="all, delete-orphan")
+
+class TicketAttachment(Base):
+    __tablename__ = "ticket_attachments"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True, default=lambda: uid("ATT"))
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("tickets.id", ondelete="CASCADE"), index=True)
+    filename: Mapped[str] = mapped_column(String(240))
+    media_type: Mapped[str] = mapped_column(String(120), default="application/octet-stream")
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    ticket: Mapped[Ticket] = relationship(back_populates="attachments")
 
 class TicketMessage(Base):
     __tablename__ = "ticket_messages"
