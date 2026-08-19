@@ -1,0 +1,53 @@
+services:
+  db:
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-groundeddesk}
+      POSTGRES_USER: ${POSTGRES_USER:-groundeddesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-groundeddesk}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-groundeddesk} -d ${POSTGRES_DB:-groundeddesk}"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "5432:5432"
+    volumes:
+      - groundeddesk_pg:/var/lib/postgresql/data
+
+  api:
+    build: ./apps/api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-groundeddesk}:${POSTGRES_PASSWORD:-groundeddesk}@db:5432/${POSTGRES_DB:-groundeddesk}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-m", "app.bootstrap"]
+    ports:
+      - "8000:8000"
+
+  worker:
+    build: ./apps/api
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-groundeddesk}:${POSTGRES_PASSWORD:-groundeddesk}@db:5432/${POSTGRES_DB:-groundeddesk}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-m", "app.worker"]
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+
+volumes:
+  groundeddesk_pg:
