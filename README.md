@@ -1,84 +1,207 @@
 # GroundedDesk
 
-GroundedDesk is a multi-tenant support desk with a governed knowledge base and evidence-first RAG. The final repository turns the validated HTML prototype into a locally runnable product: tickets and SLA remain deterministic, AI drafts require human review, retrieval exposes its evidence, and every material action is auditable.
+**GroundedDesk** é uma plataforma de atendimento B2B multitenant com base de conhecimento governada e RAG orientado por evidências. O sistema integra tickets, filas, SLA, gestão de conhecimento, busca híbrida, respostas assistidas por IA e auditoria em um fluxo operacional único.
 
-## Final stack
+A arquitetura foi desenhada para manter as decisões críticas sob controle da aplicação: a IA auxilia na elaboração de respostas, mas não controla transições de tickets, autorização, envio de mensagens ou regras de negócio.
 
-- **Web:** Next.js 16.2.x, React 19.2, TypeScript, App Router
-- **API:** Python 3.13, FastAPI 0.140.x, SQLAlchemy 2.0
-- **Database/search:** PostgreSQL 18 + pgvector 0.8.6
-- **Background processing:** transactional PostgreSQL job queue + Python worker (`FOR UPDATE SKIP LOCKED`)
-- **RAG:** PostgreSQL-backed authorized chunks + pgvector embeddings, application-level lexical/vector scoring with reciprocal-rank fusion, deterministic local embedding/generation provider by default
-- **Auth:** signed JWT demo sessions with server-side RBAC and tenant scoping
-- **Local runtime:** Docker Compose
+## Visão geral
 
-No paid service is required for the demo path. The AI boundary is provider-based, so a real provider can be added without changing ticket, retrieval, or audit contracts.
+O GroundedDesk combina operação de suporte e recuperação de conhecimento com rastreabilidade de ponta a ponta.
 
-## Product capabilities
+Principais capacidades:
 
-- demo login with Cliente, Atendente, Gestor, Admin KB and Auditor roles;
-- organization-scoped data access;
-- tickets, queues, priority, SLA and explicit state transitions;
-- requester comments, ticket attachment metadata and agent replies;
-- AI-assisted draft with citations and groundedness score;
-- mandatory human review before sending an AI-assisted answer;
-- Markdown/PDF/DOCX knowledge-document metadata and version history;
-- asynchronous ingestion/reprocessing;
-- chunking and deterministic local embeddings;
-- hybrid lexical/vector search with visible scores and reranking;
-- AI-provider failure simulation and deterministic fallback;
-- immutable-style audit trail for domain, retrieval and AI events;
-- repeatable seed and demo reset.
+- atendimento multitenant com isolamento por organização;
+- autenticação JWT, RBAC e escopo de dados por tenant;
+- tickets, filas, prioridades, SLA e transições explícitas de estado;
+- comentários, respostas de atendentes e metadados de anexos;
+- base de conhecimento com versionamento e reprocessamento;
+- ingestão assíncrona de documentos;
+- chunking e embeddings para recuperação semântica;
+- busca híbrida lexical + vetorial;
+- combinação de resultados por Reciprocal Rank Fusion (RRF);
+- geração de respostas assistidas por IA com citações e groundedness score;
+- revisão humana obrigatória antes do envio de respostas assistidas;
+- fallback determinístico quando o provedor de IA está indisponível;
+- trilha de auditoria para eventos de domínio, recuperação e IA.
 
-## Run locally
+## Arquitetura
+
+O sistema é dividido em aplicação web, API HTTP, banco PostgreSQL e worker assíncrono.
+
+```text
+Browser / Next.js
+        │ JWT
+        ▼
+FastAPI API
+  │
+  ├── autenticação e autorização
+  ├── tickets e SLA
+  ├── base de conhecimento
+  ├── busca híbrida / RAG
+  ├── assistência por IA
+  └── auditoria
+        │
+        ▼
+PostgreSQL + pgvector
+  │
+  ├── dados transacionais
+  ├── documentos e chunks
+  ├── embeddings
+  ├── eventos de auditoria
+  └── fila transacional de ingestão
+        ▲
+        │
+   Python Worker
+```
+
+O PostgreSQL atua como armazenamento transacional e vetorial, reduzindo a quantidade de infraestrutura necessária e mantendo integridade relacional entre tickets, documentos, chunks, citações e eventos de auditoria.
+
+## Stack
+
+### Frontend
+
+- Next.js 16
+- React 19
+- TypeScript
+- App Router
+
+### Backend
+
+- Python 3.13
+- FastAPI
+- SQLAlchemy 2
+- Pydantic
+- JWT
+
+### Dados e busca
+
+- PostgreSQL 18
+- pgvector
+- busca lexical e vetorial
+- Reciprocal Rank Fusion
+
+### Processamento assíncrono
+
+- worker Python
+- fila transacional no PostgreSQL
+- `FOR UPDATE SKIP LOCKED`
+
+### Infraestrutura local
+
+- Docker
+- Docker Compose
+
+## RAG orientado por evidências
+
+O fluxo de recuperação prioriza rastreabilidade. O sistema recupera chunks autorizados da base de conhecimento, calcula sinais lexicais e vetoriais, combina os rankings e mantém as evidências associadas à resposta sugerida.
+
+```text
+Pergunta / contexto do ticket
+        │
+        ▼
+Recuperação autorizada
+        │
+        ├── lexical score
+        └── vector score
+                │
+                ▼
+        Reciprocal Rank Fusion
+                │
+                ▼
+       Evidências + citações
+                │
+                ▼
+        Assistência por IA
+                │
+                ▼
+          Revisão humana
+                │
+                ▼
+              Envio
+```
+
+A camada de IA é substituível por provedor e possui implementação local determinística como padrão, permitindo executar o ambiente sem depender de serviços pagos.
+
+## Segurança e governança
+
+O GroundedDesk mantém as regras sensíveis fora do modelo de IA:
+
+- autorização aplicada no servidor;
+- isolamento de tenant na camada de dados;
+- papéis distintos para operação, gestão, administração da base e auditoria;
+- respostas assistidas exigem revisão humana;
+- eventos relevantes são registrados para auditoria;
+- falhas do provedor de IA não interrompem o fluxo principal de tickets.
+
+## Executar localmente
+
+### Pré-requisitos
+
+- Docker
+- Docker Compose
+
+### Inicialização
 
 ```bash
 cp .env.example .env
 docker compose up --build
 ```
 
-Then open:
+Após a inicialização:
 
-- Web: `http://localhost:3000`
-- API docs: `http://localhost:8000/docs`
+- Aplicação web: `http://localhost:3000`
+- API / OpenAPI: `http://localhost:8000/docs`
 
-The API container initializes the schema and seeds demo data automatically. The worker consumes document-ingestion jobs from PostgreSQL.
+A API inicializa o schema e os dados locais necessários. O worker processa os jobs de ingestão armazenados no PostgreSQL.
 
-## Demo flow
-
-1. Login as **Rafael Lima / Atendente**.
-2. Open ticket `GD-1842`.
-3. Generate/inspect the grounded draft and citations.
-4. Click **Usar como base**, review the text, and send it.
-5. Open **Busca RAG** to inspect lexical/vector/RRF scores.
-6. Login as **Ana Martins / Admin KB** to publish or reprocess a document.
-7. Toggle **Simular falha de IA** and confirm tickets remain operable.
-8. Login as **Otávio Faria / Auditor** and inspect the audit trail.
-
-## Repository layout
+## Estrutura do repositório
 
 ```text
-apps/
-  api/      FastAPI API, domain services, DB models, worker and tests
-  web/      Next.js application preserving the prototype interaction model
-scripts/    deterministic repository validation
+GroundedDesk/
+├── apps/
+│   ├── api/              # FastAPI, domínio, persistência, worker e testes
+│   └── web/              # Next.js e interface do usuário
+├── docs/                 # Arquitetura, RAG, segurança e documentação técnica
+├── scripts/              # Validações determinísticas do repositório
+├── docker-compose.yml    # Ambiente local
+└── .github/workflows/    # Integração contínua
 ```
 
-## Validation
+## Validação
 
-The repository contains lightweight static/domain checks that do not require dependency installation:
+### Validação estrutural
 
 ```bash
 python scripts/validate_repo.py
+```
+
+### Testes do backend
+
+```bash
+pip install ./apps/api
 python -m unittest discover apps/api/tests -v
 ```
 
-Full runtime validation, after dependencies are available:
+### Frontend
 
 ```bash
-docker compose up --build
+cd apps/web
+npm ci
+npm run typecheck
+npm run build
 ```
 
-## Architecture
+O pipeline de CI executa as validações de backend e frontend a cada push para `main` e em pull requests.
 
-See `docs/architecture.md`, `docs/rag.md`, `docs/security.md`, and `docs/demo.md`.
+## Documentação técnica
+
+A documentação complementar está em:
+
+- `docs/architecture.md`
+- `docs/rag.md`
+- `docs/security.md`
+- `docs/demo.md`
+
+## Licença
+
+Este projeto é distribuído sob os termos definidos em `LICENSE`.
