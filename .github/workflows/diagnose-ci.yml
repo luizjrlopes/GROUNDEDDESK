@@ -1,0 +1,63 @@
+name: Diagnose CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/diagnose-ci.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run pipeline and capture diagnostics
+        run: |
+          set +e
+          {
+            echo '## static validation'
+            python scripts/validate_repo.py
+            echo "EXIT_STATIC=$?"
+            echo
+            echo '## backend install'
+            pip install ./apps/api
+            echo "EXIT_BACKEND_INSTALL=$?"
+            echo
+            echo '## backend tests'
+            python -m unittest discover apps/api/tests -v
+            echo "EXIT_BACKEND_TESTS=$?"
+            echo
+            echo '## generate web lockfile'
+            (cd apps/web && npm install --package-lock-only)
+            echo "EXIT_LOCKFILE=$?"
+            echo
+            echo '## web clean install'
+            (cd apps/web && npm ci)
+            echo "EXIT_WEB_INSTALL=$?"
+            echo
+            echo '## web typecheck'
+            (cd apps/web && npm run typecheck)
+            echo "EXIT_TYPECHECK=$?"
+            echo
+            echo '## web build'
+            (cd apps/web && npm run build)
+            echo "EXIT_BUILD=$?"
+          } > ci-diagnostics.txt 2>&1
+          cat ci-diagnostics.txt
+      - name: Commit diagnostics and lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ci-diagnostics.txt
+          if [ -f apps/web/package-lock.json ]; then git add apps/web/package-lock.json; fi
+          git commit -m "ci: capture GroundedDesk pipeline diagnostics"
+          git push
