@@ -6,6 +6,7 @@ on:
       - agent/groundeddesk-ci-audit
     paths:
       - '.github/workflows/generate-web-lockfile.yml'
+      - 'apps/web/package.json'
 
 permissions:
   contents: write
@@ -32,5 +33,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add apps/web/package-lock.json
-          git commit -m "chore: add web package lockfile"
+          git commit -m "chore: refresh web package lockfile"
           git push origin HEAD:agent/groundeddesk-ci-audit
